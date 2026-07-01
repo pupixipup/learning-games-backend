@@ -3,7 +3,6 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Readable } from 'node:stream';
 import {
   contentTypeFor,
   sanitizeKey,
@@ -58,8 +57,7 @@ export class SupabaseTemplateStorage implements TemplateStorage {
 
       return {
         body: result.Body,
-        contentType:
-          result.ContentType ?? contentTypeFor(safeKey),
+        contentType: contentTypeFor(safeKey),
         contentLength: result.ContentLength
           ? Number(result.ContentLength)
           : undefined,
