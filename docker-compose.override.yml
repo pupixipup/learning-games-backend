@@ -12,9 +12,6 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_NAME=${DB_NAME:-turn}
       - DB_SSL=false
-      # Local driver reads/writes template files from /app/templates, which is
-      # the Docker-managed named volume below (the dev "templates" bucket).
-      - GAMES_BUCKET=templates
     volumes:
       # Persistent, Docker-managed storage for uploaded templates. Survives
       # rebuilds and up/down; wiped only by `docker compose down -v`.

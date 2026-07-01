@@ -3,7 +3,6 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { createClient } from '@supabase/supabase-js';
 import { Readable } from 'node:stream';
 import {
   contentTypeFor,
@@ -11,6 +10,8 @@ import {
   TemplateFile,
   TemplateStorage,
 } from './template-storage';
+import { S3Client, GetObjectCommand, NoSuchKey, PutObjectCommand } from '@aws-sdk/client-s3';
+import { NodeJsClient } from "@smithy/types";
 
 /**
  * Prod driver: downloads template files from the private `templates` bucket with the
@@ -21,16 +22,18 @@ import {
 export class SupabaseTemplateStorage implements TemplateStorage {
   private readonly logger = new Logger(SupabaseTemplateStorage.name);
   private readonly bucket = process.env.GAMES_BUCKET ?? 'templates';
-  private readonly client?: ReturnType<typeof createClient>;
+  private readonly client?: NodeJsClient<S3Client>;
 
   constructor() {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) {
-      this.logger.error('requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
-    } else {
-      this.client = createClient(url, key, { auth: { persistSession: false } });
-    }
+    this.client = new S3Client({
+      region: 'eu-central-1',
+      endpoint: process.env.S3_ENDPOINT,
+      credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY!,
+        secretAccessKey: process.env.S3_SECRET_KEY!,
+      },
+      forcePathStyle: true,
+    });
   }
 
   async streamTemplateFile(key: string): Promise<TemplateFile> {
@@ -39,23 +42,33 @@ export class SupabaseTemplateStorage implements TemplateStorage {
       throw new NotFoundException('Supabase storage is not configured');
     }
 
-    const { data, error } = await this.client.storage
-      .from(this.bucket)
-      .download(safeKey);
-    if (error || !data) {
-      throw new NotFoundException(`Template file not found: ${key}`);
-    }
 
-    const buffer = Buffer.from(await data.arrayBuffer());
-    return {
-      body: Readable.from(buffer),
-      // Prefer the blob's own type, fall back to the extension map.
-      contentType:
-        data.type && data.type !== 'application/octet-stream'
-          ? data.type
-          : contentTypeFor(safeKey),
-      contentLength: buffer.byteLength,
-    };
+
+    try {
+      const result = await this.client.send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: safeKey,
+        }),
+      )
+
+      if (!result.Body) {
+        throw new NotFoundException()
+      }
+
+      return {
+        body: result.Body,
+        contentType:
+          result.ContentType ?? contentTypeFor(safeKey),
+        contentLength: Number(result.ContentLength ?? 0),
+      }
+    } catch (err) {
+      if (err instanceof NoSuchKey) {
+        throw new NotFoundException(`Template file not found: ${key}`)
+      }
+
+      throw err
+    }
   }
 
   async writeTemplateFile(
@@ -66,21 +79,24 @@ export class SupabaseTemplateStorage implements TemplateStorage {
     const safeKey = sanitizeKey(key);
     if (!this.client) {
       throw new InternalServerErrorException(
-        'Supabase storage is not configured',
+        'storage is not configured',
       );
     }
 
-    const { error } = await this.client.storage
-      .from(this.bucket)
-      .upload(safeKey, body, {
-        contentType: contentType ?? contentTypeFor(safeKey),
-        upsert: true,
-      });
-    if (error) {
-      this.logger.error(`Failed to upload ${safeKey}: ${error.message}`);
+    try {
+      await this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: safeKey,
+          Body: body,
+          ContentType: contentType ?? contentTypeFor(safeKey),
+        }),
+      )
+    } catch (err) {
+      this.logger.error(err)
       throw new InternalServerErrorException(
         `Failed to store template file: ${key}`,
-      );
+      )
     }
   }
 }
