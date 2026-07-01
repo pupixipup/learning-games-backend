@@ -5,19 +5,21 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import { TurnModule } from './turn/turn.module';
 import { SignalModule } from './signal/signal.module';
+import { TemplatesModule } from './templates/templates.module';
+import { GamesModule } from './games/games.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
-      // In prod (NODE_ENV=production, set by the Dockerfile) env vars are
-      // injected by the orchestrator, so there is no .env file to read.
       ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),
     DatabaseModule,
     TurnModule,
     SignalModule,
+    TemplatesModule,
+    GamesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

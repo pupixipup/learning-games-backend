@@ -1,3 +1,8 @@
+# Base stack (production-oriented): the API + TURN server.
+#
+#   Local dev:  docker compose up          # base + override -> includes db
+#   Production: docker compose -f docker-compose.yml up   # base only -> no db
+#               (or just deploy the image and set DB_* to Supabase)
 services:
   api:
     build: .
@@ -12,37 +17,21 @@ services:
       - TURN_URLS=${TURN_URLS:-turn:turn.example.com:3478}
       - TURN_TTL=${TURN_TTL:-86400}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
-      # Inside the compose network the API reaches Postgres via the `db` host.
-      - DB_HOST=db
-      - DB_PORT=5432
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-5432}
       - DB_USERNAME=${DB_USERNAME:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_NAME=${DB_NAME:-turn}
-      - DB_MIGRATIONS_RUN=${DB_MIGRATIONS_RUN:-true}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-postgres}
+      - DB_SSL=${DB_SSL:-true}
+      # No auto-migration in prod: run `npm run migration:run:prod` deliberately
+      # as a release step. (Locally, migrations auto-run when NODE_ENV=development.)
+      # --- Template file storage (private Supabase bucket) ---
+      - SUPABASE_URL=${SUPABASE_URL:-https://uxvrhoidxucctcpwvrhf.supabase.co}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+      - GAMES_BUCKET=${GAMES_BUCKET:-templates}
     depends_on:
       coturn:
         condition: service_started
-      db:
-        condition: service_healthy
-
-  db:
-    image: postgres:16-alpine
-    container_name: turn-db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=${DB_USERNAME:-postgres}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
-      - POSTGRES_DB=${DB_NAME:-turn}
-    ports:
-      # Published so host-run tooling (npm run migration:run) can reach it.
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-turn}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   coturn:
     image: instrumentisto/coturn:latest
@@ -57,6 +46,3 @@ services:
     environment:
       - TZ=UTC
     command: ["turnserver", "-c", "/etc/coturn/turnserver.conf"]
-
-volumes:
-  pgdata:

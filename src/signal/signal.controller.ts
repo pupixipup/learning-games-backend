@@ -17,15 +17,25 @@ export class SignalController {
 
   /** Broadcaster subscribes: receives viewer-offer / viewer-ice / viewer-disconnect. */
   @Sse('broadcaster')
-  broadcasterStream(@Param('sessionId') sessionId: string): Observable<MessageEvent> {
+  broadcasterStream(
+    @Param('sessionId') sessionId: string,
+  ): Observable<MessageEvent> {
     return this.signal.connectBroadcaster(sessionId);
   }
 
   /** Broadcaster sends broadcaster-answer / broadcaster-ice (carrying the target viewer id). */
   @Post('broadcaster')
-  fromBroadcaster(@Param('sessionId') sessionId: string, @Body() body: BroadcasterMessage) {
-    if (body?.type !== 'broadcaster-answer' && body?.type !== 'broadcaster-ice') {
-      throw new BadRequestException('type must be "broadcaster-answer" or "broadcaster-ice"');
+  fromBroadcaster(
+    @Param('sessionId') sessionId: string,
+    @Body() body: BroadcasterMessage,
+  ) {
+    if (
+      body?.type !== 'broadcaster-answer' &&
+      body?.type !== 'broadcaster-ice'
+    ) {
+      throw new BadRequestException(
+        'type must be "broadcaster-answer" or "broadcaster-ice"',
+      );
     }
     if (!body.id) {
       throw new BadRequestException('id (target viewerId) is required');
@@ -50,7 +60,9 @@ export class SignalController {
     @Body() body: ViewerMessage,
   ) {
     if (body?.type !== 'viewer-offer' && body?.type !== 'viewer-ice') {
-      throw new BadRequestException('type must be "viewer-offer" or "viewer-ice"');
+      throw new BadRequestException(
+        'type must be "viewer-offer" or "viewer-ice"',
+      );
     }
     return this.signal.fromViewer(sessionId, viewerId, body);
   }

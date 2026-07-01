@@ -24,8 +24,7 @@ export const dataSourceOptions: DataSourceOptions = {
   migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
   // Never auto-sync the schema — migrations are the only way it changes.
   synchronize: false,
-  ssl:
-    process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
 };
 
 const dataSource = new DataSource(dataSourceOptions);

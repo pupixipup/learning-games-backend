@@ -1,0 +1,1 @@
+This is a backend for Russian language learning project, where users can play games and create new games based one existing templates.

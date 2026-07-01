@@ -35,7 +35,9 @@ export class SignalService {
 
     const buffered = session.broadcasterBuffer;
     session.broadcasterBuffer = [];
-    this.logger.log(`broadcaster connected: ${sessionId} (flushed ${buffered.length})`);
+    this.logger.log(
+      `broadcaster connected: ${sessionId} (flushed ${buffered.length})`,
+    );
 
     // Tell already-waiting viewers the broadcaster is live.
     this.broadcastToViewers(session, { type: 'broadcaster-ready', data: {} });
@@ -48,7 +50,10 @@ export class SignalService {
           session.broadcaster = null;
           this.logger.log(`broadcaster disconnected: ${sessionId}`);
           // Let waiting viewers show "player left."
-          this.broadcastToViewers(session, { type: 'broadcaster-gone', data: {} });
+          this.broadcastToViewers(session, {
+            type: 'broadcaster-gone',
+            data: {},
+          });
           this.cleanupIfEmpty(sessionId, session);
         }
       }),
@@ -68,12 +73,18 @@ export class SignalService {
       ? [{ type: 'broadcaster-ready', data: {} }]
       : [];
 
-    return merge(concat(from(startup), subject.asObservable()), this.heartbeat()).pipe(
+    return merge(
+      concat(from(startup), subject.asObservable()),
+      this.heartbeat(),
+    ).pipe(
       finalize(() => {
         if (session.viewers.get(viewerId) === subject) {
           session.viewers.delete(viewerId);
           this.logger.log(`viewer disconnected: ${sessionId}/${viewerId}`);
-          this.routeToBroadcaster(session, { type: 'viewer-disconnect', data: { id: viewerId } });
+          this.routeToBroadcaster(session, {
+            type: 'viewer-disconnect',
+            data: { id: viewerId },
+          });
           this.cleanupIfEmpty(sessionId, session);
         }
       }),
@@ -81,11 +92,16 @@ export class SignalService {
   }
 
   /** Broadcaster → viewer. Returns whether the target viewer was connected. */
-  fromBroadcaster(sessionId: string, message: BroadcasterMessage): { delivered: boolean } {
+  fromBroadcaster(
+    sessionId: string,
+    message: BroadcasterMessage,
+  ): { delivered: boolean } {
     const session = this.getSession(sessionId);
     const viewer = session.viewers.get(message.id);
     if (!viewer) {
-      this.logger.warn(`broadcaster message for unknown viewer ${sessionId}/${message.id}`);
+      this.logger.warn(
+        `broadcaster message for unknown viewer ${sessionId}/${message.id}`,
+      );
       return { delivered: false };
     }
 
@@ -98,14 +114,20 @@ export class SignalService {
   }
 
   /** Viewer → broadcaster. Tagged with the viewerId; buffered if none yet. */
-  fromViewer(sessionId: string, viewerId: string, message: ViewerMessage): { buffered: boolean } {
+  fromViewer(
+    sessionId: string,
+    viewerId: string,
+    message: ViewerMessage,
+  ): { buffered: boolean } {
     const session = this.getSession(sessionId);
     const data =
       message.type === 'viewer-offer'
         ? { id: viewerId, offer: message.offer }
         : { id: viewerId, candidate: message.candidate };
 
-    return { buffered: this.routeToBroadcaster(session, { type: message.type, data }) };
+    return {
+      buffered: this.routeToBroadcaster(session, { type: message.type, data }),
+    };
   }
 
   /** Delivers to the broadcaster if connected, otherwise buffers. */
@@ -132,7 +154,11 @@ export class SignalService {
   private getSession(sessionId: string): Session {
     let session = this.sessions.get(sessionId);
     if (!session) {
-      session = { broadcaster: null, viewers: new Map(), broadcasterBuffer: [] };
+      session = {
+        broadcaster: null,
+        viewers: new Map(),
+        broadcasterBuffer: [],
+      };
       this.sessions.set(sessionId, session);
     }
     return session;

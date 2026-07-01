@@ -1,0 +1,46 @@
+# This file is NOT used in production
+services:
+  api:
+    environment:
+      # Override the production default baked into the Dockerfile so the
+      # local storage driver (not Supabase) is used for local dev.
+      - NODE_ENV=development
+      # Override the managed-Postgres defaults from the base file
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USERNAME=${DB_USERNAME:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NAME:-turn}
+      - DB_SSL=false
+      # Local driver reads/writes template files from /app/templates, which is
+      # the Docker-managed named volume below (the dev "templates" bucket).
+      - GAMES_BUCKET=templates
+    volumes:
+      # Persistent, Docker-managed storage for uploaded templates. Survives
+      # rebuilds and up/down; wiped only by `docker compose down -v`.
+      - templates-data:/app/templates
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    container_name: turn-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USERNAME:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-turn}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-turn}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  templates-data:

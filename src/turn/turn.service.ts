@@ -21,8 +21,10 @@ export interface TurnCredentials {
 export class TurnService {
   private readonly logger = new Logger(TurnService.name);
 
-  private readonly secret = process.env.TURN_SECRET as string;
-  private readonly urls = (process.env.TURN_URLS ?? 'turn:turn.example.com:3478')
+  private readonly secret = process.env.TURN_SECRET;
+  private readonly urls = (
+    process.env.TURN_URLS ?? 'turn:turn.example.com:3478'
+  )
     .split(',')
     .map((url) => url.trim())
     .filter(Boolean);
@@ -30,9 +32,7 @@ export class TurnService {
 
   constructor() {
     if (!this.secret) {
-      this.logger.warn(
-        'Set TURN_SECRET. It is empty.',
-      ); 
+      this.logger.warn('Set TURN_SECRET. It is empty.');
     }
   }
 
