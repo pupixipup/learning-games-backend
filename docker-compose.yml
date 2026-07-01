@@ -9,6 +9,8 @@ services:
     container_name: turn-api
     restart: unless-stopped
     ports:
+      # Cloudflare (proxied) connects to the origin on :80; :8080 kept for direct/local access.
+      - "80:8080"
       - "8080:8080"
     environment:
       - PORT=8080
