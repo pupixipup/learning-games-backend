@@ -27,5 +27,7 @@ export const dataSourceOptions: DataSourceOptions = {
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
 };
 
+console.log('Database connection options:', dataSourceOptions)
+
 const dataSource = new DataSource(dataSourceOptions);
 export default dataSource;
