@@ -60,7 +60,9 @@ export class SupabaseTemplateStorage implements TemplateStorage {
         body: result.Body,
         contentType:
           result.ContentType ?? contentTypeFor(safeKey),
-        contentLength: Number(result.ContentLength ?? 0),
+        contentLength: result.ContentLength
+          ? Number(result.ContentLength)
+          : undefined,
       }
     } catch (err) {
       if (err instanceof NoSuchKey) {
