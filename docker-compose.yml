@@ -35,12 +35,21 @@ services:
     image: instrumentisto/coturn:latest
     container_name: coturn
     restart: unless-stopped
-    ports:
-      - "3478:3478/udp"
-      - "3478:3478/tcp"
-      - "5349:5349/tcp"
+    network_mode: host
     volumes:
       - ./coturn/coturn.conf:/etc/coturn/turnserver.conf:ro
     environment:
       - TZ=UTC
     command: ["turnserver", "-c", "/etc/coturn/turnserver.conf"]
+
+# IPv6 on the api's network. Supabase's direct DB endpoint
+# (db.<ref>.supabase.co) is IPv6-only, and Docker's default bridge is
+# IPv4-only, so the api container needs an IPv6-enabled network to reach it.
+# Requires the daemon to have {"ipv6": true, "ip6tables": true} for NAT66.
+# (coturn is unaffected — it uses network_mode: host.)
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd00:dead:beef::/64

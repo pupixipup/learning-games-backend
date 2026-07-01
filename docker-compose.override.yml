@@ -20,6 +20,13 @@ services:
       db:
         condition: service_healthy
 
+  coturn:
+    network_mode: bridge
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "5349:5349/tcp"
+
   db:
     image: postgres:16-alpine
     container_name: turn-db
