@@ -46,10 +46,12 @@ services:
 # (db.<ref>.supabase.co) is IPv6-only, and Docker's default bridge is
 # IPv4-only, so the api container needs an IPv6-enabled network to reach it.
 # Requires the daemon to have {"ipv6": true, "ip6tables": true} for NAT66.
+# NOTE: this subnet must NOT overlap the daemon's fixed-cidr-v6 or any other
+# Docker network, or `up` fails with "Pool overlaps with other one".
 # (coturn is unaffected — it uses network_mode: host.)
 networks:
   default:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: fd00:dead:beef::/64
+        - subnet: fd00:cafe:babe::/64
