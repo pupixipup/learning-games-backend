@@ -34,7 +34,9 @@ services:
         condition: service_started
 
   coturn:
-    image: instrumentisto/coturn:latest
+    # Official image. Do NOT use instrumentisto/coturn — its `latest` tag is
+    # frozen at coturn 4.5.2 (2020, known CVEs and TURN bugs).
+    image: coturn/coturn:latest
     container_name: coturn
     restart: unless-stopped
     network_mode: host
