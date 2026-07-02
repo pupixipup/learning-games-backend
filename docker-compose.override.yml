@@ -22,6 +22,8 @@ services:
 
   coturn:
     network_mode: bridge
+    volumes:
+      - ./coturn/coturn.dev.conf:/etc/coturn/turnserver.conf:ro
     ports:
       - "3478:3478/udp"
       - "3478:3478/tcp"
