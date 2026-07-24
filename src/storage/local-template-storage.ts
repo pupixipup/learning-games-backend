@@ -11,7 +11,7 @@ import {
 
 /**
  * Dev driver: serves template files from the `GAMES_BUCKET` folder on disk
- * (default `templates`, holding `<id>/index.html` folders).
+ * (default `templates`, holding `<id>/index.js` folders).
  */
 export class LocalTemplateStorage implements TemplateStorage {
   // Bucket name doubles as the on-disk root folder. It must equal the fixed

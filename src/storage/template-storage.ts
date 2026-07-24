@@ -11,7 +11,7 @@ export interface TemplateFile {
 }
 
 /**
- * Source of template files (`index.html` + assets/scripts). One implementation
+ * Source of template files (`index.js` + assets). One implementation
  * per environment (disk in dev, the private Supabase bucket in prod); the active
  * instance is selected in {@link StorageModule}. Consumers depend on this
  * interface via the {@link TEMPLATE_STORAGE} token, never on a concrete class.
@@ -19,14 +19,14 @@ export interface TemplateFile {
 export interface TemplateStorage {
   /**
    * Streams a single file by its bucket-relative key, e.g.
-   * `templates/tic-tac-toe/index.html`. Throws {@link NotFoundException} when the
+   * `templates/tic-tac-toe/index.js`. Throws {@link NotFoundException} when the
    * file is missing.
    */
   streamTemplateFile(key: string): Promise<TemplateFile>;
 
   /**
    * Writes (or overwrites) a single file at its bucket-relative key, e.g.
-   * `templates/tic-tac-toe/index.html`. Used by the template-upload endpoint;
+   * `templates/tic-tac-toe/index.js`. Used by the template-upload endpoint;
    * the key is normalised with {@link sanitizeKey} by each driver.
    */
   writeTemplateFile(
@@ -41,8 +41,6 @@ export const TEMPLATE_STORAGE = Symbol('TEMPLATE_STORAGE');
 
 /** Minimal extension -> content-type map for the asset types a game ships. */
 const CONTENT_TYPES: Record<string, string> = {
-  html: 'text/html; charset=utf-8',
-  htm: 'text/html; charset=utf-8',
   js: 'text/javascript; charset=utf-8',
   mjs: 'text/javascript; charset=utf-8',
   css: 'text/css; charset=utf-8',
@@ -68,7 +66,7 @@ const CONTENT_TYPES: Record<string, string> = {
 /**
  * Normalises a request path into a safe bucket key under `templates/`. Rejects
  * traversal (`..`), backslashes and absolute paths; defaults a bare template
- * folder to its `index.html`. Shared by every {@link TemplateStorage} so the
+ * folder to its `index.js`. Shared by every {@link TemplateStorage} so the
  * guarantees hold regardless of which driver is active.
  */
 export function sanitizeKey(key: string): string {
@@ -80,8 +78,8 @@ export function sanitizeKey(key: string): string {
   if (segments.some((s) => s === '..') || isAbsolute(cleaned)) {
     throw new NotFoundException(`Invalid path: ${key}`);
   }
-  // Expected shape: templates/<id>/<...>. Serve index.html for a bare folder.
-  if (segments.length <= 2) segments.push('index.html');
+  // Expected shape: templates/<id>/<...>. Serve index.js for a bare folder.
+  if (segments.length <= 2) segments.push('index.js');
   return segments.join('/');
 }
 

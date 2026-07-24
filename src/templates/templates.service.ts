@@ -22,7 +22,7 @@ export interface UploadTemplateResult {
   files: string[];
 }
 
-const INDEX_FILE = 'index.html';
+const INDEX_FILE = 'index.js';
 
 @Injectable()
 export class TemplatesService {
@@ -49,7 +49,7 @@ export class TemplatesService {
   /**
    * Stores an uploaded game template: writes its files under `templates/<slug>/`
    * and registers a {@link GameTemplate} row. Validates the name, the presence of
-   * a root-level `index.html`, and that every file is a known web asset.
+   * a root-level `index.js`, and that every file is a known web asset.
    */
   async createTemplate(
     name: string,
@@ -64,7 +64,7 @@ export class TemplatesService {
     }
 
     if (!files || files.length === 0) {
-      throw new BadRequestException('At least `index.html` must be uploaded');
+      throw new BadRequestException('At least `index.js` must be uploaded');
     }
 
     const parsedConfig = this.parseConfig(config);
@@ -77,12 +77,10 @@ export class TemplatesService {
 
     const indexCount = entries.filter((e) => e.relKey === INDEX_FILE).length;
     if (indexCount === 0) {
-      throw new BadRequestException(
-        'A root-level `index.html` file is required',
-      );
+      throw new BadRequestException('A root-level `index.js` file is required');
     }
     if (indexCount > 1) {
-      throw new BadRequestException('Only one `index.html` may be uploaded');
+      throw new BadRequestException('Only one `index.js` may be uploaded');
     }
 
     for (const { relKey } of entries) {

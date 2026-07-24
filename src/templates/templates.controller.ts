@@ -29,7 +29,7 @@ export class TemplatesController {
 
   /**
    * Uploads a new game template: a `name` plus multipart `files` containing a
-   * mandatory `index.html` and optional JS/CSS/asset files.
+   * mandatory `index.js` and optional JS/CSS/asset files.
    */
   @Post()
   @UseInterceptors(

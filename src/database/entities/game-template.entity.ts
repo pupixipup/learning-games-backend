@@ -3,7 +3,7 @@ import { Game } from './game.entity';
 
 /**
  * Catalog of reusable game templates. A template owns the actual files
- * (`index.html` + assets/scripts); games created from it reuse those files and
+ * (`index.js` + assets); games created from it reuse those files and
  * only supply content/settings via their own `config`.
  *
  * The `id` is a human-readable slug that matches the template's folder under the

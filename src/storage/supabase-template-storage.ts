@@ -9,8 +9,13 @@ import {
   TemplateFile,
   TemplateStorage,
 } from './template-storage';
-import { S3Client, GetObjectCommand, NoSuchKey, PutObjectCommand } from '@aws-sdk/client-s3';
-import { NodeJsClient } from "@smithy/types";
+import {
+  S3Client,
+  GetObjectCommand,
+  NoSuchKey,
+  PutObjectCommand,
+} from '@aws-sdk/client-s3';
+import { NodeJsClient } from '@smithy/types';
 
 /**
  * Prod driver: downloads template files from the private `templates` bucket with the
@@ -28,8 +33,8 @@ export class SupabaseTemplateStorage implements TemplateStorage {
       region: 'eu-central-1',
       endpoint: process.env.S3_ENDPOINT,
       credentials: {
-        accessKeyId: process.env.S3_ACCESS_KEY!,
-        secretAccessKey: process.env.S3_SECRET_KEY!,
+        accessKeyId: process.env.S3_ACCESS_KEY,
+        secretAccessKey: process.env.S3_SECRET_KEY,
       },
       forcePathStyle: true,
     });
@@ -41,18 +46,16 @@ export class SupabaseTemplateStorage implements TemplateStorage {
       throw new NotFoundException('Supabase storage is not configured');
     }
 
-
-
     try {
       const result = await this.client.send(
         new GetObjectCommand({
           Bucket: this.bucket,
           Key: safeKey,
         }),
-      )
+      );
 
       if (!result.Body) {
-        throw new NotFoundException()
+        throw new NotFoundException();
       }
 
       return {
@@ -61,13 +64,13 @@ export class SupabaseTemplateStorage implements TemplateStorage {
         contentLength: result.ContentLength
           ? Number(result.ContentLength)
           : undefined,
-      }
+      };
     } catch (err) {
       if (err instanceof NoSuchKey) {
-        throw new NotFoundException(`Template file not found: ${key}`)
+        throw new NotFoundException(`Template file not found: ${key}`);
       }
 
-      throw err
+      throw err;
     }
   }
 
@@ -78,9 +81,7 @@ export class SupabaseTemplateStorage implements TemplateStorage {
   ): Promise<void> {
     const safeKey = sanitizeKey(key);
     if (!this.client) {
-      throw new InternalServerErrorException(
-        'storage is not configured',
-      );
+      throw new InternalServerErrorException('storage is not configured');
     }
 
     try {
@@ -91,12 +92,12 @@ export class SupabaseTemplateStorage implements TemplateStorage {
           Body: body,
           ContentType: contentType ?? contentTypeFor(safeKey),
         }),
-      )
+      );
     } catch (err) {
-      this.logger.error(err)
+      this.logger.error(err);
       throw new InternalServerErrorException(
         `Failed to store template file: ${key}`,
-      )
+      );
     }
   }
 }

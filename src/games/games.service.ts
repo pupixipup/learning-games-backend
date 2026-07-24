@@ -24,7 +24,7 @@ export interface GameView {
   config: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
-  /** Template entry point to load (HTML that boots the game). */
+  /** Template entry point to load (JS module that boots the game). */
   entryUrl: string;
   /** Base URL the template's relative assets resolve against. */
   assetsBaseUrl: string;
@@ -104,7 +104,7 @@ export class GamesService {
       config: game.config,
       createdAt: game.createdAt,
       updatedAt: game.updatedAt,
-      entryUrl: `${assetsBaseUrl}/index.html`,
+      entryUrl: `${assetsBaseUrl}/index.js`,
       assetsBaseUrl,
       ...(game.template && {
         template: {
