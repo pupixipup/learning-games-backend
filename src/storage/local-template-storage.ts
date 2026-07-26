@@ -41,7 +41,11 @@ export class LocalTemplateStorage implements TemplateStorage {
   }
 
   async streamTemplateFile(key: string): Promise<TemplateFile> {
-    const absolute = this.resolveSafe(key);
+    // Normalise once and derive both the path and the content type from the
+    // result, so an unnormalised key cannot report a different type here than it
+    // would in the Supabase driver.
+    const safeKey = sanitizeKey(key);
+    const absolute = this.resolveSafe(safeKey);
 
     let size: number;
     try {
@@ -54,11 +58,16 @@ export class LocalTemplateStorage implements TemplateStorage {
 
     return {
       body: createReadStream(absolute),
-      contentType: contentTypeFor(key),
+      contentType: contentTypeFor(safeKey),
       contentLength: size,
     };
   }
 
+  /**
+   * Stores the raw bytes only — `WriteOptions` is intentionally unused. Content
+   * type and encoding are response concerns that the serve path re-derives from
+   * the key, so there is nowhere on disk they would need to live.
+   */
   async writeTemplateFile(key: string, body: Buffer): Promise<void> {
     const absolute = this.resolveSafe(key);
     await mkdir(dirname(absolute), { recursive: true });

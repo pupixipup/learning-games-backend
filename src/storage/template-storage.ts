@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { isAbsolute } from 'node:path';
 import { Readable } from 'node:stream';
+import { SIDECAR_SUFFIX_RE } from './content-encoding';
 
 /** A single template file, ready to stream to the client. */
 export interface TemplateFile {
@@ -8,6 +9,17 @@ export interface TemplateFile {
   contentType: string;
   /** Set when the size is known up front (enables a Content-Length header). */
   contentLength?: number;
+}
+
+/**
+ * Storage metadata for a write. Deliberately absent from {@link TemplateFile}: the
+ * local driver cannot persist it (plain files carry no metadata) and Supabase may
+ * not echo it back, so the serve path derives the response headers from the key
+ * and the variant it chose rather than trusting what storage returns.
+ */
+export interface WriteOptions {
+  contentType?: string;
+  contentEncoding?: 'br';
 }
 
 /**
@@ -28,18 +40,30 @@ export interface TemplateStorage {
    * Writes (or overwrites) a single file at its bucket-relative key, e.g.
    * `templates/tic-tac-toe/index.js`. Used by the template-upload endpoint;
    * the key is normalised with {@link sanitizeKey} by each driver.
+   *
+   * Compressible assets are stored twice: the raw bytes at the canonical key,
+   * plus a `<key>.br` sidecar. The sidecar is written unconditionally (see
+   * {@link isCompressibleKey}) so the serve path can infer that it exists from
+   * the extension alone, without probing storage.
    */
   writeTemplateFile(
     key: string,
     body: Buffer,
-    contentType?: string,
+    options?: WriteOptions,
   ): Promise<void>;
 }
 
 /** DI token for the active {@link TemplateStorage} implementation. */
 export const TEMPLATE_STORAGE = Symbol('TEMPLATE_STORAGE');
 
-/** Minimal extension -> content-type map for the asset types a game ships. */
+/**
+ * Minimal extension -> content-type map for the asset types a game ships.
+ *
+ * WARNING: never add `gz` or `br` here. This map doubles as the upload allowlist
+ * (see {@link isAllowedExtension}), so adding them would let a client upload a
+ * file that shadows a server-generated sidecar and serve different bytes to
+ * compressed and uncompressed clients for the same URL.
+ */
 const CONTENT_TYPES: Record<string, string> = {
   js: 'text/javascript; charset=utf-8',
   mjs: 'text/javascript; charset=utf-8',
@@ -61,6 +85,10 @@ const CONTENT_TYPES: Record<string, string> = {
   woff: 'font/woff',
   woff2: 'font/woff2',
   ttf: 'font/ttf',
+  // Godot resource pack (shipped alongside index.js + index.wasm by a web
+  // export). No registered media type exists, and octet-stream is what Godot's
+  // own loader fetches it as.
+  pck: 'application/octet-stream',
 };
 
 /**
@@ -83,9 +111,19 @@ export function sanitizeKey(key: string): string {
   return segments.join('/');
 }
 
+/** Lowercased extension of a filename or key, without the dot. */
+function extensionOf(name: string): string {
+  return name.split('.').pop()?.toLowerCase() ?? '';
+}
+
+/**
+ * Content type to serve a key as. A trailing sidecar suffix is stripped first, so
+ * `index.js.br` reports `text/javascript` — the type of the bytes once the client
+ * has decoded them, which is what `Content-Encoding` requires.
+ */
 export function contentTypeFor(key: string): string {
-  const ext = key.split('.').pop()?.toLowerCase() ?? '';
-  return CONTENT_TYPES[ext] ?? 'application/octet-stream';
+  const canonical = key.replace(SIDECAR_SUFFIX_RE, '');
+  return CONTENT_TYPES[extensionOf(canonical)] ?? 'application/octet-stream';
 }
 
 /**
@@ -94,8 +132,38 @@ export function contentTypeFor(key: string): string {
  * template only ever ships streamable web assets.
  */
 export function isAllowedExtension(filename: string): boolean {
-  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
-  return filename.includes('.') && ext in CONTENT_TYPES;
+  return filename.includes('.') && extensionOf(filename) in CONTENT_TYPES;
+}
+
+/**
+ * Extensions worth pre-compressing. The already-compressed formats (png, webp,
+ * mp3, woff2, ...) are excluded: re-compressing them gains almost nothing and
+ * costs CPU on every upload.
+ */
+const COMPRESSIBLE_EXTENSIONS = new Set([
+  'js',
+  'mjs',
+  'css',
+  'json',
+  'map',
+  'txt',
+  // A Godot .pck is an uncompressed container, so it compresses even though the
+  // textures and audio inside it are already compressed. Godot's web export docs
+  // recommend serving it pre-compressed, same as .wasm.
+  'pck',
+  'svg',
+  'wasm',
+]);
+
+/**
+ * `true` when a key has `.br`/`.gz` sidecars, i.e. its response can vary by
+ * `Accept-Encoding`. This is the single source of truth for both halves of the
+ * feature: the upload path writes sidecars exactly when it holds, and the serve
+ * path fetches one exactly when it holds — so neither side ever has to ask
+ * storage whether a sidecar is there.
+ */
+export function isCompressibleKey(key: string): boolean {
+  return COMPRESSIBLE_EXTENSIONS.has(extensionOf(key));
 }
 
 /**

@@ -8,6 +8,7 @@ import {
   sanitizeKey,
   TemplateFile,
   TemplateStorage,
+  WriteOptions,
 } from './template-storage';
 import {
   S3Client,
@@ -66,7 +67,7 @@ export class SupabaseTemplateStorage implements TemplateStorage {
           : undefined,
       };
     } catch (err) {
-      if (err instanceof NoSuchKey) {
+      if (isNotFound(err)) {
         throw new NotFoundException(`Template file not found: ${key}`);
       }
 
@@ -77,7 +78,7 @@ export class SupabaseTemplateStorage implements TemplateStorage {
   async writeTemplateFile(
     key: string,
     body: Buffer,
-    contentType?: string,
+    options?: WriteOptions,
   ): Promise<void> {
     const safeKey = sanitizeKey(key);
     if (!this.client) {
@@ -90,7 +91,13 @@ export class SupabaseTemplateStorage implements TemplateStorage {
           Bucket: this.bucket,
           Key: safeKey,
           Body: body,
-          ContentType: contentType ?? contentTypeFor(safeKey),
+          ContentType: options?.contentType ?? contentTypeFor(safeKey),
+          // Correct metadata for a pre-compressed sidecar, so the object is still
+          // right if the bucket is ever served directly or through a CDN. The
+          // response header does not depend on this being stored.
+          ...(options?.contentEncoding && {
+            ContentEncoding: options.contentEncoding,
+          }),
         }),
       );
     } catch (err) {
@@ -100,4 +107,25 @@ export class SupabaseTemplateStorage implements TemplateStorage {
       );
     }
   }
+}
+
+/**
+ * `true` for every way the S3-compatible endpoint can report a missing object.
+ * The typed `NoSuchKey` error alone is not enough: the serve path deliberately
+ * requests sidecars that may not exist and falls back on {@link NotFoundException},
+ * so a bare 404 that surfaced as some other error would turn every template
+ * uploaded before pre-compression into a 500 instead of a graceful fallback.
+ */
+function isNotFound(err: unknown): boolean {
+  if (err instanceof NoSuchKey) return true;
+  if (typeof err !== 'object' || err === null) return false;
+  const candidate = err as {
+    name?: unknown;
+    $metadata?: { httpStatusCode?: unknown };
+  };
+  return (
+    candidate.name === 'NoSuchKey' ||
+    candidate.name === 'NotFound' ||
+    candidate.$metadata?.httpStatusCode === 404
+  );
 }

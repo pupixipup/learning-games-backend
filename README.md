@@ -87,6 +87,38 @@ POST body shapes:
 A periodic `ping` event is emitted on both streams to keep the connection alive
 through idle-timeout proxies; clients can ignore it.
 
+## Game template compression
+
+Templates are uploaded as loose web assets and served one file at a time from
+`GET /templates/:id/*path`. Nothing in front of the API compresses those
+responses — Cloudflare runs in DNS-only mode here, because its proxied mode is
+blocked in Russia — so the origin does it, at upload time rather than per
+request:
+
+```
+templates/tic-tac-toe/index.js       # raw bytes
+templates/tic-tac-toe/index.js.br    # Content-Encoding: br
+templates/tic-tac-toe/logo.png       # already compressed — no sidecar
+```
+
+The sidecar is written for every compressible extension (`js`, `mjs`, `css`,
+`json`, `map`, `txt`, `svg`, `wasm`, `pck`) unconditionally, so the serve path knows
+from the extension alone that it exists and never has to ask storage. It serves
+it when the request's `Accept-Encoding` allows, and sets `Vary: Accept-Encoding`.
+Uploading a `.br`/`.gz` file yourself is rejected — a client-supplied sidecar
+could otherwise shadow a real asset.
+
+Templates uploaded before this existed have no sidecar; they still serve
+correctly (the request falls back to the raw file) and re-uploading them is what
+generates the compressed variant.
+
+**Brotli only, no gzip fallback** (~14% of original vs gzip's ~18%). A client
+that cannot take brotli gets the raw file. That is safe here because these
+assets are ES modules loaded by browsers, and every browser that can load an ES
+module also supports brotli — but note browsers only advertise `br` on secure
+origins, so the origin must be behind HTTPS for this to engage at all.
+`http://localhost` counts as secure, so local dev does use it.
+
 ## Configuration (env)
 
 | Variable      | Default                        | Notes                                        |
@@ -95,6 +127,7 @@ through idle-timeout proxies; clients can ignore it.
 | `TURN_URLS`   | `turn:turn.example.com:3478`   | Comma-separated ICE URLs returned to clients.|
 | `TURN_TTL`    | `86400`                        | Credential lifetime in seconds.              |
 | `PORT`        | `8080`                         | API listen port.                             |
+| `TEMPLATE_BROTLI_QUALITY` | `9`                | Brotli level for template sidecars. Raising it to 11 costs ~29x the CPU for ~12% smaller output, which is only worth it for rare offline uploads. |
 
 ## Local development (without Docker)
 
