@@ -397,3 +397,7 @@ Temporary Items
 dist
 .webpack
 .serverless/**/*.zip
+
+# Template files written by the local storage driver (GAMES_BUCKET). Generated
+# from uploads and from seed/templates/ — never edited here.
+/templates

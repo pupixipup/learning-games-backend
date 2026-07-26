@@ -135,3 +135,39 @@ origins, so the origin must be behind HTTPS for this to engage at all.
 npm install
 npm run start:dev
 ```
+
+Only the API runs on the host; Postgres still comes from compose
+(`docker compose up -d db`) and is reachable on `localhost:5432`. Migrations run
+automatically when `NODE_ENV=development`.
+
+## Dev data (seed)
+
+`seed/templates/<id>/` holds template fixtures: the files a template would
+otherwise be uploaded with, checked into the repo. `npm run seed` registers each
+one and creates its game, so a fresh environment has something to load.
+
+```bash
+docker compose up -d        # or: npm run start:dev
+npm run seed
+```
+
+| Fixture         | Template id     | Seeded game               |
+| --------------- | --------------- | ------------------------- |
+| `space-journey` | `space-journey` | «Космическое путешествие» |
+
+The seeder drives the public API (`POST /templates`, `POST /games`) instead of
+writing files and rows itself. In Docker the template files live on a volume the
+host cannot see, and going through the endpoint means the fixture takes the same
+path a real upload does — validation, content types, brotli sidecars — rather
+than a parallel one that can drift from it.
+
+Re-running is a no-op: uploads deliberately refuse to overwrite a template. After
+editing a fixture, `npm run seed -- --force` deletes the template **and every
+game built on it** — directly in the database, since a template that games still
+point at has no delete endpoint — then uploads it again. Other templates are
+untouched. Point the seeder somewhere other than `http://localhost:8080` with
+`API_URL`.
+
+A game is `template_id + title + config`; it owns no files. These fixtures
+hardcode their content, so their template `config` is `null` and the seeded
+game's `config` is `{}`.

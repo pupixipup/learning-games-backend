@@ -1,4 +1,7 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+  // `scripts` holds dev-only tooling (the data seeder). It must stay out of the
+  // build: including a .ts file outside `src` moves the inferred root up to the
+  // project folder, which emits `dist/src/main.js` and breaks `node dist/main`.
+  "exclude": ["node_modules", "dist", "test", "scripts", "**/*spec.ts"]
 }
